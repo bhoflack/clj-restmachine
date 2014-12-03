@@ -31,7 +31,7 @@ Once your resources have been implemented,  you need to provide a routing to the
 The routing table is a seq of vectors with as first argument the matcher,  and as second argument the resource.  A matcher is a seq of elements that can be either a string or a regular expression pattern.  The resource that is associated with the first matcher will be called with the resource.
 
 ```
-    (route (list [["hello"] (MyResource.)]) request)
+    (route (list [["hello"] [] (MyResource.)]) request)
 ```
 
 This will execute the flow in `clj-restmachine.flow` and return a response with the assigned status code and body.

@@ -2,48 +2,75 @@
   (:require [clj-restmachine.flow :refer [run-flow*]]))
 
 (defn ^:private matches-part?
-  [part [matcher _]]
+  [part matcher regexes ctx]
   (let [matcher-part (first matcher)]
     (cond
-     (instance? String matcher-part) (= matcher-part part)
-     (instance? java.util.regex.Pattern matcher-part) (re-matches matcher-part part)
-     (nil? matcher-part) false
-     :else (throw (Exception. "Invalid handler type")))))
+     (instance? String matcher-part) [(= matcher-part part) ctx] 
+     (instance? clojure.lang.Keyword matcher-part) (if-let [r (get regexes matcher-part)]
+                                                     ; verify if the regex passes if we have a regex
+                                                     (if-let [matching (re-matches r part)]
+                                                       [true (assoc ctx matcher-part matching)]
+                                                       [false ctx])
+                                                     ; always pass if there's no regex
+                                                     [true (assoc ctx matcher-part part)])
+     (nil? matcher-part) [false ctx]
+     :else (throw (Exception. (str "Invalid handler type: " matcher-part))))))
+
+(defn filter-routes
+  [part routes]
+  (loop [routes* routes
+         matching-routes []]
+    (if (empty? routes*)
+      matching-routes
+      (let [[matcher regexes handler ctx] (first routes*)
+            remaining-matchers (rest matcher)]
+        (let [[r ctx*] (matches-part? part matcher regexes ctx)]
+          (if r
+            (recur (rest routes*) (conj matching-routes [remaining-matchers regexes handler ctx*]))
+            (recur (rest routes*) matching-routes)))))))
 
 (defn find-matching-route
-  [routes uri]
+  [routes {:keys [uri] :as request}]
   (loop [path-parts (.split uri "/")
-         matching-routes routes]
+         matching-routes (map (fn [[m r res]] [m r res {}]) routes)]
     (if (empty? path-parts)
       ; Take the first route where the matcher is also empty
       (->> matching-routes
-           (filter (fn [[matcher _]] (empty? matcher)))
+           (filter (fn [[matcher _ _ _]] (empty? matcher)))
            (first))
       ; Iterate over the next parth of the path,  keeping the routes that match the current part
       (let [part (first path-parts)]
         (recur (rest path-parts)
-               (->> matching-routes
-                    (filter (partial matches-part? part))
-                    (map (fn [[matcher handler]]
-                           [(rest matcher) handler]))))))))
+               (filter-routes part matching-routes))))))
 
 (defn route
   "Route the request to the correct resource.
 
    Routes is a seq of a seq containing the matcher as the first part,
-   and the related handler as the second argument.
+   the regular expressions for the matcher in the second argument and 
+   the related handler as the third argument.
+
+   You can create matchers for strings (where we compare the given part
+   of the path to the string) and regexes (where we match the part of the 
+   path to the regex).
+
+
+   If the route contains keywords,  then the keyword and the related
+   value will be available in the :path-parameters in the request.
 
    Example:
 
    (route 
-     (list [[\"users\" #\"\w+\"] user-resource)
-           [[\"users\" #\"\w+\" \"products\"] product-resource]))
+     (list [[\"users\" :name] {:name #\"\\w+\"} user-resource)
+           [[\"users\" :name \"products\"] {:name #\"\\w+\"} product-resource]))
 
    This will create a routing table that matches:
      - users/krusty to the user-resource
      - users/krusty/products to the product-resource"
-  ([routes {:keys [uri] :as request} not-found-resource]
-   (if-let [resource (find-matching-route routes uri)]
-     (run-flow* (second resource) request)
-     not-found-resource))
+  ([routes request not-found-resource]
+   (let [[_ _ resource ctx] (find-matching-route routes request)
+         request* (assoc request :path-parameters ctx)]
+     (if resource
+       (run-flow* resource request*)
+       not-found-resource)))
   ([routes request] (route routes request {:status 404 :body "Not found"})))
