@@ -1,3 +1,4 @@
+[![Clojars Project](http://clojars.org/clj-restmachine/latest-version.svg)](http://clojars.org/clj-restmachine)
 # clj-restmachine
 
 A simple clone of Basho's Webmachine.
