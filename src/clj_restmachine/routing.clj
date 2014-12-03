@@ -1,7 +1,7 @@
 (ns clj-restmachine.routing
   (:require [clj-restmachine.flow :refer [run-flow*]]))
 
-(defn matches-part?
+(defn ^:private matches-part?
   [part [matcher _]]
   (let [matcher-part (first matcher)]
     (cond
@@ -28,7 +28,20 @@
                            [(rest matcher) handler]))))))))
 
 (defn route
-  "Route the request to the correct resource."
+  "Route the request to the correct resource.
+
+   Routes is a seq of a seq containing the matcher as the first part,
+   and the related handler as the second argument.
+
+   Example:
+
+   (route 
+     (list [[\"users\" #\"\w+\"] user-resource)
+           [[\"users\" #\"\w+\" \"products\"] product-resource]))
+
+   This will create a routing table that matches:
+     - users/krusty to the user-resource
+     - users/krusty/products to the product-resource"
   ([routes {:keys [uri] :as request} not-found-resource]
    (if-let [resource (find-matching-route routes uri)]
      (run-flow* (second resource) request)
