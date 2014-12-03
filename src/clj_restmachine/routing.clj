@@ -31,7 +31,7 @@
 
 (defn find-matching-route
   [routes {:keys [uri] :as request}]
-  (loop [path-parts (.split uri "/")
+  (loop [path-parts (.split (.substring uri 1) "/")
          matching-routes (map (fn [[m r res]] [m r res {}]) routes)]
     (if (empty? path-parts)
       ; Take the first route where the matcher is also empty
@@ -67,10 +67,10 @@
    This will create a routing table that matches:
      - users/krusty to the user-resource
      - users/krusty/products to the product-resource"
-  ([routes request not-found-resource]
+  ([routes not-found-resource request]
    (let [[_ _ resource ctx] (find-matching-route routes request)
          request* (assoc request :path-parameters ctx)]
      (if resource
        (run-flow* resource request*)
        not-found-resource)))
-  ([routes request] (route routes request {:status 404 :body "Not found"})))
+  ([routes request] (route routes {:status 404 :body "Not found"} request)))

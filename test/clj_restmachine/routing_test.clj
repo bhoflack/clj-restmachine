@@ -42,7 +42,7 @@
         [["hello" :name] [] hello-resource]))
 
 (deftest route-test
-  (let [request {:uri "users/brecht"
+  (let [request {:uri "/users/brecht"
                  :request-method :get
                  :headers {"Request-Type" "application/edn"}}
         response (route routes request)]
@@ -50,14 +50,14 @@
     (is (= "{:name \"brecht\"}" (:body response)))))
 
 (deftest match-everything-test
-  (let [request {:uri "hello/brecht"
+  (let [request {:uri "/hello/brecht"
                  :request-method :get}
         response (route routes request)]
     (is (= 200 (:status response)))
     (is (= "hello world" (:body response)))))
 
 (deftest product-test
-  (let [request {:uri "users/krusty/products"
+  (let [request {:uri "/users/krusty/products"
                  :request-method :get
                  :headers {"Request-Type" "application/edn"}}
         response (route routes request)]
@@ -65,12 +65,12 @@
     (is (= "[{:product :a} {:product :b}]" (:body response)))))
 
 (deftest part-of-a-route
-  (let [request {:uri "users"}
+  (let [request {:uri "/users"}
         response (route routes request)]
     (is (= 404 (:status response)))))
 
 (deftest not-found
-  (let [request {:uri "users/brecht/blaat"
+  (let [request {:uri "/users/brecht/blaat"
                  :request-method :get
                  }
         response (route routes request)]
