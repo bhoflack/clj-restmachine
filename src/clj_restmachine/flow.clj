@@ -7,11 +7,17 @@
    :body data
    })
 
+(defn b3
+  [r req flow]
+  (if (resource-exists? r req)
+    [(conj flow :b3) (create-response r req)]
+    [flow (generate-response "Resource not found" 404)]))
+
 (defn b4
   [r req flow]
   (if (request-entity-too-large? r req)
     [flow (generate-response "Request Entity Too Large" 413)]
-    [(conj flow :b4) (create-response r req)]))
+    (b3 r req (conj flow :b4))))
 
 (defn b5
   [r req flow]

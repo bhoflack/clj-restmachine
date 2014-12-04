@@ -12,7 +12,8 @@
   (unknown-or-unsupported-header? [this req])
   (unknown-content-type? [this req])
   (request-entity-too-large? [this req])
-  (create-response [this req]))
+  (create-response [this req])
+  (resource-exists? [this req]))
 
 (def default-resource
   {:service-available? (fn [_ _] true)
@@ -25,4 +26,5 @@
    :unknown-or-unsupported-header? (fn [_ _] false)
    :unknown-content-type? (fn [_ _] false)
    :request-entity-too-large? (fn [_ _] false)
+   :resource-exists? (fn [_ _] true)
    })

@@ -1,4 +1,4 @@
-(defproject clj-restmachine "0.1.0"
+(defproject clj-restmachine "0.2.0-SNAPSHOT"
   :description "Webmachine clone for clojure"
   :url "http://github.com/bhoflack/clj-restmachine"
   :license {:name "Eclipse Public License"
