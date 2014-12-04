@@ -1,12 +1,15 @@
 (ns clj-restmachine.routing-test
   (:use clojure.test)
   (:require clj-restmachine.type
-            [clj-restmachine.routing :refer [route]]))
+            [clj-restmachine.routing :refer [route]]
+            [clj-restmachine.resources :refer [file-resource files-resource]]))
 
 ; The resources
 (deftype UserResource [])
 (deftype ProductResource [])
 (deftype HelloResource [])
+(deftype WildcardResource [])
+(deftype HiResource [])
 
 (extend UserResource
   clj-restmachine.type/Resource
@@ -32,14 +35,36 @@
           :create-response (fn [_ req] {:status 200
                                         :body "hello world"})}))
 
+(extend WildcardResource
+  clj-restmachine.type/Resource
+  (merge clj-restmachine.type/default-resource
+         {:known-method? (fn [_ {:keys [request-method]}] (= :get request-method))
+          :create-response (fn [_ {:keys [path-parameters]}] {:status 200
+                                                              :body (str "Rest of path: " (:* path-parameters))})}))
+
+
+(extend HiResource
+  clj-restmachine.type/Resource
+  (merge clj-restmachine.type/default-resource
+         {:known-method? (fn [_ {:keys [request-method]}] (= :get request-method))
+          :create-response (fn [_ {:keys [path-parameters]}] {:status 200
+                                                              :body "Specific works"})}))
+
 (def user-resource (UserResource.))
 (def product-resource (ProductResource.))
 (def hello-resource (HelloResource.))
+(def wildcard-resource (WildcardResource.))
+(def hi-resource (HiResource.))
 
 (def routes
   (list [["users" :name] {:name #"\w+"} user-resource]
         [["users" :name "products"] {:name #"\w+"} product-resource]
-        [["hello" :name] [] hello-resource]))
+        [["hello" :name] [] hello-resource]
+        [["wildcard" "hi"] [] hi-resource]
+        [["wildcard" :blub] [] hi-resource]
+        [["wildcard" :*] [] wildcard-resource]
+        [[] [] (file-resource "test.html" "test-resources")]
+        [["resources" :*] [] (files-resource "" "test-resources")]))
 
 (deftest route-test
   (let [request {:uri "/users/brecht"
@@ -75,3 +100,50 @@
                  }
         response (route routes request)]
     (is (= 404 (:status response)))))
+
+(deftest wildcard-test
+  (let [request {:uri "/wildcard/hello/world"
+                 :request-method :get}
+        {status :status body :body} (route routes request)]
+    (is (= 200 status))
+    (is (= "Rest of path: hello/world") body)))
+
+(deftest wildcard-specific-variable-test
+  (let [request {:uri "/wildcard/hoi"
+                 :request-method :get}
+        {status :status body :body} (route routes request)]
+    (is (= 200 status))
+    (is (= "Specific works") body)))
+
+(deftest wildcard-specific
+  (let [request {:uri "/wildcard/hi"
+                 :request-method :get}
+        {status :status body :body} (route routes request)]
+    (is (= 200 status))
+    (is (= "Specific works") body)))
+
+(deftest root-test
+  (let [request {:uri "/"
+                 :request-method :get}
+        {status :status body :body} (route routes request)]
+    (is (= 200 status))
+    (is (instance? java.io.File body))))
+
+(deftest resources-test
+  (let [request {:uri "/resources/test.html"
+                 :request-method :get}
+        {status :status body :body  headers :headers} (route routes request)]
+    (is (= 200 status))
+    (is (instance? java.io.File body))
+    (is (.exists body))
+    (is (= "text/html" (get headers "Content-Type")))))
+
+
+(deftest image-resources-test
+  (let [request {:uri "/resources/blub/test.png"
+                 :request-method :get}
+        {status :status body :body  headers :headers} (route routes request)]
+    (is (= 200 status))
+    (is (instance? java.io.File body))
+    (is (.exists body))
+    (is (= "image/png" (get headers "Content-Type")))))
